@@ -1,5 +1,6 @@
 #include <IRremote.h>
 
+#define STATUS_PIN 8
 const int RECV_PIN = 7;
 IRrecv irrecv(RECV_PIN);
 decode_results results;
@@ -8,7 +9,8 @@ decode_results results;
 void setup() {
    Serial.begin(9600);
    Serial.println("starting");
-   pinMode(2, INPUT_PULLUP);
+   //pinMode(2, INPUT_PULLUP);
+   pinMode(STATUS_PIN, OUTPUT);
    pinMode(4, INPUT_PULLUP);
 
   irrecv.enableIRIn();
@@ -18,14 +20,32 @@ void setup() {
 boolean off = true;
 boolean exitsent = false;
 
+void understood()
+{
+   digitalWrite(STATUS_PIN, HIGH);
+   delay(450);
+   digitalWrite(STATUS_PIN, LOW);
+}
+
+void not_understood()
+{
+   digitalWrite(STATUS_PIN, HIGH);
+   delay(150);
+   digitalWrite(STATUS_PIN, LOW);
+   delay(150);
+   digitalWrite(STATUS_PIN, HIGH);
+   delay(150);
+   digitalWrite(STATUS_PIN, LOW);
+}
+
 void loop() {
-  int r = digitalRead(2);
+  /*int r = digitalRead(2);
 
   if ((r == HIGH) != off)
   {
      off = r==HIGH;
      Serial.println(off?"pause":"play");  
-  }
+  }*/
 
   if (!exitsent && digitalRead(4)==LOW)
   {
@@ -39,24 +59,31 @@ void loop() {
     {
 	case 0x8e71f609:
 		Serial.println("volup");
+		understood();
 		break;
 	case 0x8e710ef1:
 		Serial.println("voldown");
+		understood();
 		break;
 	case 0x8e7106f9:
 		Serial.println("play");
+		understood();
 		break;
 	case 0x8e7116e9:
 		Serial.println("pause");
+		understood();
 		break;
 	case 0x8e7146b9:
 		Serial.println("forward");
+		understood();
 		break;
 	case 0x8E71C639:
 		Serial.println("backward");
+		understood();
 		break;
 	default:
 		Serial.println(results.value, HEX);
+		not_understood();
 		break;
       }
         irrecv.resume();
