@@ -12,6 +12,28 @@ def get_player():
     player = Playerctl.Player.new_from_name(name)
     return player
 
+class cli(object):
+    def __init__(self):
+        pass
+
+    def play(self):
+        subprocess.call(['playerctl', 'play'])
+
+    def pause(self):
+        subprocess.call(['playerctl', 'pause'])
+
+    def forward(self):
+        subprocess.call(['playerctl', 'position', '5+'])
+
+    def backward(self):
+        subprocess.call(['playerctl', 'position', '5-'])
+
+    def volume_up(self):
+        subprocess.call(['playerctl', 'volume', '0.05+'])
+
+    def volume_down(self):
+        subprocess.call(['playerctl', 'volume', '0.05-'])
+
 class DNY(object):
     SEEK_STEP = 5 * 1000 * 1000 # 5 seconds
     VOLUME_STEP = 0.05 # 5 %
@@ -61,7 +83,8 @@ def accept_commands(device):
     print("opening " + device)
     f=open(device)
     end=False
-    p = DNY(get_player()) # todo lazy getting player
+    #p = DNY(get_player()) # todo lazy getting player
+    p = cli()
     while(not end):
         s=f.readline()
         print(s)
