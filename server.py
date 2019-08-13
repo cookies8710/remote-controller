@@ -80,28 +80,36 @@ def get_device():
     return os.path.join(serial_devices_path, arduino_serial[0])
 
 def accept_commands(device):
+    cmd_dict = {
+            0x8e71f609: 'volume_up',
+            0x8e710ef1: 'volume_down',
+            0x8e7106f9: 'play',
+            0x8e7116e9: 'pause',
+            0x8e7146b9: 'forward',
+            0x8E71C639: 'backward'
+            }
     print("opening " + device)
     f=open(device)
     end=False
     #p = DNY(get_player()) # todo lazy getting player
     p = cli()
+    s=''
     while(not end):
-        s=f.readline()
-        print(s)
-        if (s.startswith('play')):
-            p.play()
-        elif (s.startswith('pause')):
-            p.pause()
-        elif (s.startswith('volup')):
-            p.volume_up()
-        elif (s.startswith('voldown')):
-            p.volume_down()
-        elif (s.startswith('forward')):
-            p.forward()
-        elif (s.startswith('backward')):
-            p.backward()
-        elif (s.startswith('exit')):
-            end = True
+        s=s + f.readline()
+        if '\n' in s:
+            print('read: %s' % s)
+            try:
+                d = int(s, base=16)
+                if d in cmd_dict:
+                    print(cmd_dict[d])
+                    getattr(p, cmd_dict[d])()
+                else:
+                    print('unknown signal 0x%X' % d)
+            except Exception as error:
+                pass
+            s = ''
+
+        # todo end
 
 print("Started")
 
@@ -122,18 +130,20 @@ def tui(stdscr):
     msg = ''
 
     #files = os.listdir("/mnt/d/mp3/Heather Nova/04 Oyster")
-#    directory = "/mnt/d/mp3/Mindless Self Indulgence"
-    directory = "/media/home-media/oskar"
-    files = os.listdir(directory)
+    directory = "/mnt/d/data/Movies/=HD="
+   # directory = "/media/home-media/oskar"
+    files = ['..'] + os.listdir(directory)
 
     while not end:
         stdscr.clear()
 
+        stdscr.addstr(0,0, directory, curses.A_REVERSE)
+        base = 2
         for i in range(0, len(files)):
             if i == sel:
-                stdscr.addstr(i,0, files[i], curses.A_REVERSE)
+                stdscr.addstr(base + i,0, files[i], curses.A_REVERSE)
             else:
-                stdscr.addstr(i,0, files[i])
+                stdscr.addstr(base + i,0, files[i])
 
         stdscr.addstr(len(files) + 4, 0, str(last_key))
         stdscr.addstr(len(files) + 5, 0, str(sel))
@@ -149,15 +159,24 @@ def tui(stdscr):
             sel = max(sel - 1, 0)
         elif last_key == curses.KEY_ENTER or last_key == 10:
             msg = 'enter '
-            subprocess.call(['vlc', '-f', os.path.join(directory, files[sel]), '&>/dev/null'])
-            #vlc_command('open', [os.path.join(directory, files[sel])])
+            fs = files[sel]
+            selected = os.path.join(directory, fs)
+            if fs == '..':
+                directory = os.path.dirname(directory)
+                files = ['..'] + os.listdir(directory)[:15]
+                msg='will enter super'
+            elif os.path.isdir(selected):
+                directory = selected
+                files = ['..'] + os.listdir(directory)[:15]
+            else:
+                msg='will play file' + selected
+                subprocess.call(['vlc', '-f', selected])
         elif last_key == ord('x'):
             end = True
         else:
             msg = 'unknown'
     
 curses.wrapper(tui)
-
 curses.nocbreak()
 stdscr.keypad(False)
 curses.echo()

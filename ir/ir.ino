@@ -39,14 +39,6 @@ void not_understood()
 }
 
 void loop() {
-  /*int r = digitalRead(2);
-
-  if ((r == HIGH) != off)
-  {
-     off = r==HIGH;
-     Serial.println(off?"pause":"play");  
-  }*/
-
   if (!exitsent && digitalRead(4)==LOW)
   {
     exitsent = true;
@@ -55,7 +47,10 @@ void loop() {
   }
   delay(100);
   if (irrecv.decode(&results)){
-    switch (results.value)
+	Serial.println(results.value, HEX);
+	understood();
+        irrecv.resume();
+    /*switch (results.value)
     {
 	case 0x8e71f609:
 		Serial.println("volup");
@@ -82,11 +77,8 @@ void loop() {
 		understood();
 		break;
 	default:
-		Serial.println(results.value, HEX);
-		not_understood();
 		break;
-      }
-        irrecv.resume();
+      }*/
   }
 
 }
