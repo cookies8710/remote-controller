@@ -5,7 +5,7 @@ import sys
 import os
 import threading
 import curses
-from gi.repository import Playerctl
+#from gi.repository import Playerctl
 
 def get_player():
     name = Playerctl.list_players()[0]
@@ -110,10 +110,10 @@ command_thread = threading.Thread(target=accept_commands, args=[get_device()])
 print("starting command thread")
 command_thread.start()
 
-#stdscr = curses.initscr()
-#curses.noecho()
-#curses.cbreak()
-#stdscr.keypad(True)
+stdscr = curses.initscr()
+curses.noecho()
+curses.cbreak()
+stdscr.keypad(True)
 
 def tui(stdscr):
     end = False
@@ -122,7 +122,8 @@ def tui(stdscr):
     msg = ''
 
     #files = os.listdir("/mnt/d/mp3/Heather Nova/04 Oyster")
-    directory = "/mnt/d/mp3/Mindless Self Indulgence"
+#    directory = "/mnt/d/mp3/Mindless Self Indulgence"
+    directory = "/media/home-media/oskar"
     files = os.listdir(directory)
 
     while not end:
@@ -148,17 +149,18 @@ def tui(stdscr):
             sel = max(sel - 1, 0)
         elif last_key == curses.KEY_ENTER or last_key == 10:
             msg = 'enter '
-            vlc_command('open', [os.path.join(directory, files[sel])])
+            subprocess.call(['vlc', '-f', os.path.join(directory, files[sel]), '&>/dev/null'])
+            #vlc_command('open', [os.path.join(directory, files[sel])])
         elif last_key == ord('x'):
             end = True
         else:
             msg = 'unknown'
     
-#curses.wrapper(tui)
+curses.wrapper(tui)
 
-#curses.nocbreak()
-#stdscr.keypad(False)
-#curses.echo()
+curses.nocbreak()
+stdscr.keypad(False)
+curses.echo()
 
 print("waiting for command thread to finish")
 command_thread.join()
