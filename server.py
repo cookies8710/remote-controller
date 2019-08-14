@@ -133,7 +133,7 @@ class tuio(object):
 
     def __init__(self, stdscr):
         self.stdscr = stdscr
-        self.directory = "/mnt/d/data/Movies/=HD="
+        self.directory = "/media/home-media/Expansion Drive/movies"
         self.files = self._get_files(self.directory)
         self.maxy = 20
         self.wpos=0
@@ -156,9 +156,6 @@ class tuio(object):
         self.stdscr.addstr(0,0, self.directory, curses.A_REVERSE)
         base = 2
         
-        
-
-
         for i in range(0, min(self.maxy, len(self.files))):
             fl = self.files[i + self.wpos]
             if i + self.wpos == self.sel:
@@ -199,7 +196,8 @@ class tuio(object):
                 self.files = ['..'] + os.listdir(self.directory)
             else:
                 self.msg='will play file' + self.selected
-                subprocess.call(['vlc', '-f', self.selected])
+                # todo remember pid and use it for closing
+                subprocess.Popen(['vlc', '-f', self.selected])
 
         self.redraw()
 
