@@ -79,14 +79,17 @@ def get_device():
         raise RuntimeError("multiple arduino serial devices found in " + serial_devices_path)
     return os.path.join(serial_devices_path, arduino_serial[0])
 
-def accept_commands(device):
+def accept_commands(device, t):
     cmd_dict = {
             0x8e71f609: 'volume_up',
             0x8e710ef1: 'volume_down',
             0x8e7106f9: 'play',
             0x8e7116e9: 'pause',
             0x8e7146b9: 'forward',
-            0x8E71C639: 'backward'
+            0x8E71C639: 'backward',
+            0x8E716A95: 'up',
+            0x8E71EA15: 'down',
+            0x8E715AA5: 'enter'
             }
     print("opening " + device)
     f=open(device)
@@ -102,7 +105,10 @@ def accept_commands(device):
                 d = int(s, base=16)
                 if d in cmd_dict:
                     print(cmd_dict[d])
-                    getattr(p, cmd_dict[d])()
+                    if cmd_dict[d] in dir(p):
+                        getattr(p, cmd_dict[d])()
+                    else:
+                        t.handle_input(cmd_dict[d])
                 else:
                     print('unknown signal 0x%X' % d)
             except Exception as error:
@@ -113,73 +119,119 @@ def accept_commands(device):
 
 print("Started")
 
-command_thread = threading.Thread(target=accept_commands, args=[get_device()])
-
-print("starting command thread")
-command_thread.start()
-
 stdscr = curses.initscr()
 curses.noecho()
 curses.cbreak()
 stdscr.keypad(True)
 
-def tui(stdscr):
-    end = False
-    last_key = ''
+class tuio(object):
+    @staticmethod
+    def create(stdscr):
+        to = tuio(stdscr)
+        to.start()
+        return to
+
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.directory = "/mnt/d/data/Movies/=HD="
+        self.files = self._get_files(self.directory)
+        self.maxy = 20
+        self.wpos=0
+
     sel = 0
     msg = ''
 
-    #files = os.listdir("/mnt/d/mp3/Heather Nova/04 Oyster")
-    directory = "/mnt/d/data/Movies/=HD="
-   # directory = "/media/home-media/oskar"
-    files = ['..'] + os.listdir(directory)
+    def _get_files(self, directory):
+        return ['..'] + os.listdir(directory)
 
-    while not end:
-        stdscr.clear()
+    #self.files = os.listdir("/mnt/d/mp3/Heather Nova/04 Oyster")
+    #directory = "/mnt/d/data/Movies/=HD="
+    #files = _get_files(directory)
+   # self.directory = "/media/home-media/oskar"
+    #files = ['..'] + os.listdir(directory)
 
-        stdscr.addstr(0,0, directory, curses.A_REVERSE)
+    def redraw(self):
+        self.stdscr.clear()
+
+        self.stdscr.addstr(0,0, self.directory, curses.A_REVERSE)
         base = 2
-        for i in range(0, len(files)):
-            if i == sel:
-                stdscr.addstr(base + i,0, files[i], curses.A_REVERSE)
+        
+        
+
+
+        for i in range(0, min(self.maxy, len(self.files))):
+            fl = self.files[i + self.wpos]
+            if i + self.wpos == self.sel:
+                self.stdscr.addstr(base + i,0, fl, curses.A_REVERSE)
+            elif os.path.isdir(os.path.join(self.directory, self.files[i])):
+                self.stdscr.addstr(base + i,0, fl, curses.A_BOLD)
             else:
-                stdscr.addstr(base + i,0, files[i])
+                self.stdscr.addstr(base + i,0, fl)
 
-        stdscr.addstr(len(files) + 4, 0, str(last_key))
-        stdscr.addstr(len(files) + 5, 0, str(sel))
-        stdscr.addstr(len(files) + 6, 0, msg)
+        #self.stdscr.addstr(len(self.files) + 4, 0, str(last_key))
+        #self.stdscr.addstr(len(self.files) + 5, 0, str(self.sel))
+        #self.stdscr.addstr(len(self.files) + 6, 0, self.msg)
 
-        stdscr.refresh()
-        last_key = stdscr.getch()
-        if last_key == curses.KEY_DOWN:
-            msg = 'key down'
-            sel = min(sel + 1, len(files) - 1)
-        elif last_key == curses.KEY_UP:
-            msg = 'key up'
-            sel = max(sel - 1, 0)
-        elif last_key == curses.KEY_ENTER or last_key == 10:
-            msg = 'enter '
-            fs = files[sel]
-            selected = os.path.join(directory, fs)
+        self.stdscr.refresh()
+
+    def handle_input(self, i):
+        if i == 'down':
+            self.sel = min(self.sel + 1, len(self.files) - 1)
+            if self.sel == self.wpos + self.maxy:
+                self.wpos = self.wpos + 1
+        elif i == 'up':
+            self.sel = max(self.sel - 1, 0)
+            if self.sel < self.wpos:
+                self.wpos = self.wpos - 1
+        elif i == 'enter':
+            fs = self.files[self.sel]
+            self.selected = os.path.join(self.directory, fs)
             if fs == '..':
-                directory = os.path.dirname(directory)
-                files = ['..'] + os.listdir(directory)[:15]
-                msg='will enter super'
-            elif os.path.isdir(selected):
-                directory = selected
-                files = ['..'] + os.listdir(directory)[:15]
+                self.directory = os.path.dirname(self.directory)
+                self.files = ['..'] + os.listdir(self.directory)
+                self.msg='will enter super'
+                self.wpos=0
+                self.sel = 0
+            elif os.path.isdir(self.selected):
+                self.directory = self.selected
+                self.sel = 0
+                self.wpos=0
+                self.files = ['..'] + os.listdir(self.directory)
             else:
-                msg='will play file' + selected
-                subprocess.call(['vlc', '-f', selected])
-        elif last_key == ord('x'):
-            end = True
-        else:
-            msg = 'unknown'
-    
-curses.wrapper(tui)
+                self.msg='will play file' + self.selected
+                subprocess.call(['vlc', '-f', self.selected])
+
+        self.redraw()
+
+    def start(self, stdscr):
+        end = False
+        last_key = ''
+
+        while not end:
+            self.redraw()
+            last_key = self.stdscr.getch()
+            if last_key == curses.KEY_DOWN:
+                self.handle_input('down')
+            elif last_key == curses.KEY_UP:
+                self.handle_input('up')
+            elif last_key == curses.KEY_ENTER or last_key == 10:
+                self.handle_input('enter')
+            elif last_key == ord('x'):
+                end = True
+            else:
+                self.msg = 'unknown'
+
+x = tuio(stdscr)
+
+command_thread = threading.Thread(target=accept_commands, args=[get_device(), x])
+print("starting command thread")
+command_thread.start()
+
+curses.wrapper(x.start)
 curses.nocbreak()
 stdscr.keypad(False)
 curses.echo()
+
 
 print("waiting for command thread to finish")
 command_thread.join()
